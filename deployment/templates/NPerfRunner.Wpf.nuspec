@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>NPerfRunner.Wpf</id>
+    <title>NPerfRunner.Wpf</title>
+    <version>@build.number@</version>
+    <authors>ovidiomanteiga,OrchestraDevs,sidlovskyy</authors>
+    <owners>ovidiomanteiga,OrchestraDevs,sidlovskyy</owners>
+    <summary>NPerfRunner.Wpf</summary>
+    <description>The tool to run your NPerf performance tests</description>
+    <projectUrl>https://github.com/Orcomp/NPerfRunner</projectUrl>
+    <tags>nunit perfomance nperf</tags>
+    <licenseUrl>__REPLACE__</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>-->
+    <releaseNotes></releaseNotes>
+	@dependencies@
+  </metadata>
+</package>

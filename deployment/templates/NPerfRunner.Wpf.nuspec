@@ -10,8 +10,7 @@
     <description>The tool to run your NPerf performance tests</description>
     <projectUrl>https://github.com/Orcomp/NPerfRunner</projectUrl>
     <tags>nunit perfomance nperf</tags>
-    <licenseUrl>__REPLACE__</licenseUrl>
-    <requireLicenseAcceptance>false</requireLicenseAcceptance>-->
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <releaseNotes></releaseNotes>
 	@dependencies@
   </metadata>

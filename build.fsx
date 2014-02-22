@@ -12,6 +12,7 @@ open Fake.MSTest
 // Definitions
 
 let binProjectName = "NPerfRunner"
+let chocoBinProjectName = "NPerfRunner.Wpf"
 let netVersions = ["NET40"]
 
 let srcDir  = @".\src\"
@@ -23,10 +24,13 @@ let nuspecTemplatesDir = deploymentDir @@ "templates"
 
 let nugetExePath = srcDir @@ @".nuget\nuget.exe"
 let nugetRepositoryDir = @".\packages\"
-let nugetAccessKey = if File.Exists(@".\Nuget.key") then File.ReadAllText(@".\Nuget.key") else ""
-let version = File.ReadAllText(@".\version.txt")
+let getBuildParamOrFromFileOrEmpty param file = getBuildParamOrDefault param (if File.Exists(file) then File.ReadAllText(file) else "")
+let nugetAccessPublishKey = getBuildParamOrFromFileOrEmpty "nugetkey" @".\Nuget.key"
+let chocoAccessPublishKey = getBuildParamOrFromFileOrEmpty "chocokey" @".\Choco.key"
 
+let version = File.ReadAllText(@".\version.txt")
 let solutionAssemblyInfoPath = srcDir @@ "SolutionInfo.cs"
+
 let projectsToPackageAssemblyNames = ["NPerfRunner";]
 ////let binProjectDependencies:^string list = ["NPerf"; "fastJSON"; "Orc"; "C5"; "Langman.TreeDictionary"]
 let projectsToPackageDependencies:^string list = ["AvalonDock"; "Microsoft.Bcl"; "Microsoft.Bcl.Async"; "Microsoft.Bcl.Build"; "NLog"; "NPerf";
@@ -34,8 +38,12 @@ let projectsToPackageDependencies:^string list = ["AvalonDock"; "Microsoft.Bcl";
                                            "reactiveui-xaml"; "Rx-Core"; "Rx-Interfaces"; "Rx-Linq"; "Rx-Main";
                                            "Rx-PlatformServices"; "Rx-XAML";]
                                            //// "NPerf";]
-//// let wpfProjectDependencies =  List.append libraryDependencies
-////                                 ["CodeDomUtilities"; "ExceptionReporter"; "Extended.Wpf.Toolkit"; "fasterflect"; "Ninject";]
+let chocoExtensionsToPackage = [".dll"; ".exe"; ".xml"; ".config"; ".gui"]
+let chocoProjectsToPackageAssemblyNames = ["NPerfRunner.Wpf";]
+let chocoProjectsToPackageDependencies =  []
+////                                          List.append projectsToPackageDependencies
+////                                           ["CodeDomUtilities"; "ExceptionReporter"; "Extended.Wpf.Toolkit"; "fasterflect"; "Ninject";]
+
 
 let outputDir = @".\output\"
 let outputReleaseDir = outputDir @@ "release"//// @@ netVersion
@@ -128,7 +136,6 @@ FinalTarget "CloseMSTestRunner" (fun _ ->
 // Build a NuGet package
 
 Target "NuGet" (fun _ ->
-    let nugetAccessPublishKey = getBuildParamOrDefault "nugetkey" nugetAccessKey
     let getOutputFile netVersion projectName ext = sprintf @"%s\%s.%s" (getProjectOutputBinDirs netVersion projectName) projectName ext
     let getBinProjectFiles netVersion projectName =  [(getOutputFile netVersion projectName "dll")
                                                       (getOutputFile netVersion projectName "xml")]
@@ -171,6 +178,50 @@ Target "NuGet" (fun _ ->
 )
 
 // --------------------------------------------------------------------------------------
+// Build a NuGet package
+
+Target "Chocolatey" (fun _ ->
+    let outputChocoBinDir = getProjectOutputBinDirs (netVersions.First()) chocoBinProjectName
+
+    let outputChocoBinExe = sprintf @"%s\%s.exe" outputChocoBinDir chocoBinProjectName
+    File.Copy(outputChocoBinExe, (outputChocoBinExe + ".gui"))
+
+    let nugetDependencies = chocoProjectsToPackageDependencies
+                              |> List.map (fun d -> d, GetPackageVersion nugetRepositoryDir d)
+    
+    let getNuspecFile = sprintf "%s\%s.nuspec" nuspecTemplatesDir chocoBinProjectName
+
+    let preparePackage dirToPackage = 
+        let chocoDeploymentToolsDir = packagesDir @@ "work" @@ "tools"
+        let filesFilter path = chocoExtensionsToPackage.Contains(Path.GetExtension(path))
+        CopyDir chocoDeploymentToolsDir dirToPackage filesFilter
+
+    let cleanPackage name = 
+        DeleteDir (packagesDir @@ "work")
+
+    let doPackage dependencies =   
+        NuGet (fun p -> 
+            {p with
+                Project = binProjectName
+                Version = version
+                ToolPath = nugetExePath
+                OutputPath = packagesDir
+                WorkingDir = packagesDir @@ "work"
+                Dependencies = dependencies
+                Publish = not (String.IsNullOrEmpty chocoAccessPublishKey)
+                PublishUrl = "http://chocolatey.org/"
+                AccessKey = chocoAccessPublishKey })
+                getNuspecFile
+    
+    let doAll files depenencies =
+        preparePackage files
+        doPackage depenencies
+        cleanPackage ""
+
+    doAll outputChocoBinDir nugetDependencies
+)
+
+// --------------------------------------------------------------------------------------
 // Combined targets
 
 Target "Clean" DoNothing
@@ -190,5 +241,6 @@ Target "All" DoNothing
 Target "Release" DoNothing
 "All" ==> "Release"
 "NuGet" ==> "Release"
+"Chocolatey" ==> "Release"
  
-RunTargetOrDefault "All"
+RunTargetOrDefault "Build"
